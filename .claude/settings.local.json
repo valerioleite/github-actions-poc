@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(go mod tidy:*)",
-      "Bash(go build:*)"
+      "Bash(go build:*)",
+      "WebFetch(domain:valerioleite.github.io)"
     ]
   }
 }
