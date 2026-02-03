@@ -55,3 +55,30 @@ jobs:
       version: ${{ needs.build-and-push.outputs.version }}
       image: ${{ needs.build-and-push.outputs.image }}
     secrets: inherit
+
+  deploy-qa:
+    needs: [build-and-push, deploy-development]
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: qa
+      version: ${{ needs.build-and-push.outputs.version }}
+      image: ${{ needs.build-and-push.outputs.image }}
+    secrets: inherit
+
+  deploy-staging:
+    needs: [build-and-push, deploy-qa]
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: staging
+      version: ${{ needs.build-and-push.outputs.version }}
+      image: ${{ needs.build-and-push.outputs.image }}
+    secrets: inherit
+
+  deploy-production:
+    needs: [build-and-push, deploy-staging]
+    uses: ./.github/workflows/deploy.yml
+    with:
+      environment: production
+      version: ${{ needs.build-and-push.outputs.version }}
+      image: ${{ needs.build-and-push.outputs.image }}
+    secrets: inherit

@@ -1,6 +1,6 @@
 # GitHub Actions POC - Go API
 
-REST API in Go with CI/CD using GitHub Actions, Docker image builds and multi-environment deployments.
+REST API in Go with CI/CD using GitHub Actions, Docker image builds and multi-environment deployments to Fly.io.
 
 ## Project Structure
 
@@ -8,6 +8,10 @@ REST API in Go with CI/CD using GitHub Actions, Docker image builds and multi-en
 github-actions-poc/
 ├── .github/
 │   └── workflows/
+│       ├── deploy.yml
+│       ├── deploy-qa.yml
+│       ├── deploy-staging.yml
+│       ├── deploy-production.yml
 │       ├── develop.yml
 │       └── release.yml
 ├── cmd/
@@ -19,6 +23,7 @@ github-actions-poc/
 ├── .env.example
 ├── .gitignore
 ├── Dockerfile
+├── fly.toml
 ├── go.mod
 └── README.md
 ```
@@ -36,6 +41,15 @@ Returns current environment information.
   "version": "1.0.0"
 }
 ```
+
+## URLs
+
+| Environment | URL |
+|-------------|-----|
+| development | https://api-environment-development.fly.dev/environment |
+| qa | https://api-environment-qa.fly.dev/environment |
+| staging | https://api-environment-staging.fly.dev/environment |
+| production | https://api-environment-production.fly.dev/environment |
 
 ## Local Development
 
@@ -72,13 +86,18 @@ curl http://localhost:8080/environment
 
 **Trigger:** Tag `v*` creation on `main` branch
 
-**Jobs:**
+- Build and push image with tag version
+- Automatic deploy to development
 
-1. **build-and-push**: Build and push image with tag version
-2. **deploy-development**: Automatic deploy to development
-3. **deploy-qa**: Deploy to QA
-4. **deploy-staging**: Deploy to staging (requires approval)
-5. **deploy-production**: Deploy to production (requires approval, depends on staging)
+### Manual Deploys
+
+| Workflow | Environment |
+|----------|-------------|
+| deploy-qa.yml | qa |
+| deploy-staging.yml | staging |
+| deploy-production.yml | production |
+
+To trigger: **Actions > Select workflow > Run workflow > Enter version**
 
 ## GitHub Configuration
 
@@ -99,21 +118,21 @@ In **Settings > Actions > General**:
 
 - Workflow permissions: **Read and write permissions**
 
-### 3. GitHub Pages
+### 3. Secrets
 
-In **Settings > Pages**:
+In **Settings > Secrets and variables > Actions**:
 
-- Source: **Deploy from a branch**
-- Branch: **gh-pages**
+- `FLY_API_TOKEN`: Fly.io deploy token
 
-## GitHub Pages
+## Fly.io Setup
 
-After deployments, pages will be available at:
-
-- `https://<username>.github.io/<repo>/development/`
-- `https://<username>.github.io/<repo>/qa/`
-- `https://<username>.github.io/<repo>/staging/`
-- `https://<username>.github.io/<repo>/production/`
+```bash
+flyctl apps create api-environment-development
+flyctl apps create api-environment-qa
+flyctl apps create api-environment-staging
+flyctl apps create api-environment-production
+flyctl tokens create org
+```
 
 ## Environment Variables
 
