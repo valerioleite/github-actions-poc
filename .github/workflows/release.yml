@@ -57,7 +57,7 @@ jobs:
     secrets: inherit
 
   deploy-qa:
-    needs: [build-and-push, deploy-development]
+    needs: build-and-push
     uses: ./.github/workflows/deploy.yml
     with:
       environment: qa
@@ -66,7 +66,7 @@ jobs:
     secrets: inherit
 
   deploy-staging:
-    needs: [build-and-push, deploy-qa]
+    needs: build-and-push
     uses: ./.github/workflows/deploy.yml
     with:
       environment: staging
