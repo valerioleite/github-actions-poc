@@ -19,21 +19,21 @@ jobs:
       version: ${{ steps.version.outputs.version }}
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Extract version from tag
+      - name: Extract version
         id: version
         run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
-      - name: Log in to Container Registry
+      - name: Login to Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -42,224 +42,16 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.version.outputs.version }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
-  deploy-development:
+  deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
-    environment: development
-    permissions:
-      contents: write
-
+    strategy:
+      max-parallel: 1
+      matrix:
+        environment: [development, qa, staging, production]
+    environment: ${{ matrix.environment }}
     steps:
-      - name: Checkout gh-pages
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          fetch-depth: 0
-
-      - name: Create development page
+      - name: Deploy
         run: |
-          mkdir -p development
-          cat > development/index.html << 'EOF'
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>Development Environment</title>
-              <style>
-                  body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
-                  .status { background: #d4edda; border: 1px solid #c3e6cb; padding: 20px; border-radius: 8px; }
-                  h1 { color: #155724; }
-                  .info { margin: 10px 0; }
-                  .label { font-weight: bold; }
-              </style>
-          </head>
-          <body>
-              <div class="status">
-                  <h1>Development Environment</h1>
-                  <div class="info"><span class="label">Environment:</span> development</div>
-                  <div class="info"><span class="label">Version:</span> VERSION_PLACEHOLDER</div>
-                  <div class="info"><span class="label">Deploy Date:</span> DATE_PLACEHOLDER</div>
-                  <div class="info"><span class="label">Commit:</span> COMMIT_PLACEHOLDER</div>
-              </div>
-          </body>
-          </html>
-          EOF
-          sed -i "s/VERSION_PLACEHOLDER/${{ needs.build-and-push.outputs.version }}/g" development/index.html
-          sed -i "s/DATE_PLACEHOLDER/$(date -u '+%Y-%m-%d %H:%M:%S UTC')/g" development/index.html
-          sed -i "s/COMMIT_PLACEHOLDER/${{ github.sha }}/g" development/index.html
-
-      - name: Push to gh-pages
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add development/index.html
-          git commit -m "Deploy development v${{ needs.build-and-push.outputs.version }}" || true
-          git push origin gh-pages
-
-  deploy-qa:
-    needs: [build-and-push, deploy-development]
-    runs-on: ubuntu-latest
-    environment: qa
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout gh-pages
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          fetch-depth: 0
-
-      - name: Create QA page
-        run: |
-          mkdir -p qa
-          cat > qa/index.html << 'EOF'
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>QA Environment</title>
-              <style>
-                  body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
-                  .status { background: #fff3cd; border: 1px solid #ffc107; padding: 20px; border-radius: 8px; }
-                  h1 { color: #856404; }
-                  .info { margin: 10px 0; }
-                  .label { font-weight: bold; }
-              </style>
-          </head>
-          <body>
-              <div class="status">
-                  <h1>QA Environment</h1>
-                  <div class="info"><span class="label">Environment:</span> qa</div>
-                  <div class="info"><span class="label">Version:</span> VERSION_PLACEHOLDER</div>
-                  <div class="info"><span class="label">Deploy Date:</span> DATE_PLACEHOLDER</div>
-                  <div class="info"><span class="label">Commit:</span> COMMIT_PLACEHOLDER</div>
-              </div>
-          </body>
-          </html>
-          EOF
-          sed -i "s/VERSION_PLACEHOLDER/${{ needs.build-and-push.outputs.version }}/g" qa/index.html
-          sed -i "s/DATE_PLACEHOLDER/$(date -u '+%Y-%m-%d %H:%M:%S UTC')/g" qa/index.html
-          sed -i "s/COMMIT_PLACEHOLDER/${{ github.sha }}/g" qa/index.html
-
-      - name: Push to gh-pages
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add qa/index.html
-          git commit -m "Deploy qa v${{ needs.build-and-push.outputs.version }}" || true
-          git push origin gh-pages
-
-  deploy-staging:
-    needs: [build-and-push, deploy-qa]
-    runs-on: ubuntu-latest
-    environment: staging
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout gh-pages
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          fetch-depth: 0
-
-      - name: Create staging page
-        run: |
-          mkdir -p staging
-          cat > staging/index.html << 'EOF'
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>Staging Environment</title>
-              <style>
-                  body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
-                  .status { background: #cce5ff; border: 1px solid #007bff; padding: 20px; border-radius: 8px; }
-                  h1 { color: #004085; }
-                  .info { margin: 10px 0; }
-                  .label { font-weight: bold; }
-              </style>
-          </head>
-          <body>
-              <div class="status">
-                  <h1>Staging Environment</h1>
-                  <div class="info"><span class="label">Environment:</span> staging</div>
-                  <div class="info"><span class="label">Version:</span> VERSION_PLACEHOLDER</div>
-                  <div class="info"><span class="label">Deploy Date:</span> DATE_PLACEHOLDER</div>
-                  <div class="info"><span class="label">Commit:</span> COMMIT_PLACEHOLDER</div>
-              </div>
-          </body>
-          </html>
-          EOF
-          sed -i "s/VERSION_PLACEHOLDER/${{ needs.build-and-push.outputs.version }}/g" staging/index.html
-          sed -i "s/DATE_PLACEHOLDER/$(date -u '+%Y-%m-%d %H:%M:%S UTC')/g" staging/index.html
-          sed -i "s/COMMIT_PLACEHOLDER/${{ github.sha }}/g" staging/index.html
-
-      - name: Push to gh-pages
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add staging/index.html
-          git commit -m "Deploy staging v${{ needs.build-and-push.outputs.version }}" || true
-          git push origin gh-pages
-
-  deploy-production:
-    needs: [build-and-push, deploy-staging]
-    runs-on: ubuntu-latest
-    environment: production
-    permissions:
-      contents: write
-
-    steps:
-      - name: Checkout gh-pages
-        uses: actions/checkout@v4
-        with:
-          ref: gh-pages
-          fetch-depth: 0
-
-      - name: Create production page
-        run: |
-          mkdir -p production
-          cat > production/index.html << 'EOF'
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <title>Production Environment</title>
-              <style>
-                  body { font-family: Arial, sans-serif; max-width: 800px; margin: 50px auto; padding: 20px; }
-                  .status { background: #d4edda; border: 1px solid #28a745; padding: 20px; border-radius: 8px; }
-                  h1 { color: #155724; }
-                  .info { margin: 10px 0; }
-                  .label { font-weight: bold; }
-                  .production-badge { background: #28a745; color: white; padding: 5px 10px; border-radius: 4px; display: inline-block; margin-bottom: 10px; }
-              </style>
-          </head>
-          <body>
-              <div class="status">
-                  <span class="production-badge">PRODUCTION</span>
-                  <h1>Production Environment</h1>
-                  <div class="info"><span class="label">Environment:</span> production</div>
-                  <div class="info"><span class="label">Version:</span> VERSION_PLACEHOLDER</div>
-                  <div class="info"><span class="label">Deploy Date:</span> DATE_PLACEHOLDER</div>
-                  <div class="info"><span class="label">Commit:</span> COMMIT_PLACEHOLDER</div>
-              </div>
-          </body>
-          </html>
-          EOF
-          sed -i "s/VERSION_PLACEHOLDER/${{ needs.build-and-push.outputs.version }}/g" production/index.html
-          sed -i "s/DATE_PLACEHOLDER/$(date -u '+%Y-%m-%d %H:%M:%S UTC')/g" production/index.html
-          sed -i "s/COMMIT_PLACEHOLDER/${{ github.sha }}/g" production/index.html
-
-      - name: Push to gh-pages
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add production/index.html
-          git commit -m "Deploy production v${{ needs.build-and-push.outputs.version }}" || true
-          git push origin gh-pages
+          echo "Deploying version ${{ needs.build-and-push.outputs.version }} to ${{ matrix.environment }}"
+          echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.version }}"
