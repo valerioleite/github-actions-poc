@@ -24,7 +24,7 @@ func EnvironmentHandler(w http.ResponseWriter, r *http.Request) {
 
 	version := os.Getenv("VERSION")
 	if version == "" {
-		version = "1.0.0"
+		version = "SNAPSHOT"
 	}
 
 	response := EnvironmentResponse{
